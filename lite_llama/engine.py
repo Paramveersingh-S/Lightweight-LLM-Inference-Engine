@@ -51,8 +51,8 @@ class LLMEngine:
         self.kv_cache = NaiveKVCache(self.llama_config, config.max_batch_size, config.max_seq_len)
 
     def generate(self, prompts: List[str], max_tokens: int = 512, greedy: bool = False):
-        input_ids = torch.randint(0, 1000, (len(prompts), 10))
-        positions = torch.arange(0, 10).unsqueeze(0).repeat(len(prompts), 1)
+        input_ids = torch.randint(0, 1000, (len(prompts), 10), device='cuda')
+        positions = torch.arange(0, 10, device='cuda').unsqueeze(0).repeat(len(prompts), 1)
         
         batch = ForwardBatch(input_ids, positions, kv_cache=self.kv_cache, has_prefill=True)
         
