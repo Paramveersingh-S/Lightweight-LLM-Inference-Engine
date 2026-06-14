@@ -63,20 +63,35 @@ class LlamaCheckpointLoader:
             except Exception as e:
                 print(f"Failed to download from HF hub: {e}")
 
-        hf_state = {}
+        # Initialize model directly on GPU to save CPU RAM
+        print("Initializing empty model on GPU...")
+        with torch.device('cuda'):
+            original_dtype = torch.get_default_dtype()
+            torch.set_default_dtype(dtype)
+            model = LlamaModel(config)
+            torch.set_default_dtype(original_dtype)
+
         shards = glob.glob(f"{model_path}/*.safetensors")
         if not shards:
             shards = glob.glob(f"{model_path}/pytorch_model*.bin")
-            for shard in shards:
-                hf_state.update(torch.load(shard, map_location="cpu"))
-        else:
-            for shard in shards:
-                hf_state.update(safetensors.torch.load_file(shard))
-                
-        if not hf_state:
+            
+        if not shards:
             raise FileNotFoundError(f"No checkpoint files found in {model_path}")
 
-        model = LlamaModel(config)
-        our_state = convert_hf_to_lite_llama(hf_state, config)
-        model.load_state_dict(our_state, strict=False)
-        return model.to(dtype).cuda()
+        import gc
+        print(f"Loading weights shard by shard to prevent Colab RAM peaking...")
+        for i, shard in enumerate(shards):
+            print(f"  Loading shard {i+1}/{len(shards)}...")
+            if shard.endswith(".safetensors"):
+                shard_state = safetensors.torch.load_file(shard)
+            else:
+                shard_state = torch.load(shard, map_location="cpu")
+                
+            mapped_state = convert_hf_to_lite_llama(shard_state, config)
+            model.load_state_dict(mapped_state, strict=False)
+            
+            del shard_state
+            del mapped_state
+            gc.collect()
+
+        return model

@@ -51,12 +51,22 @@ class LLMEngine:
         self.kv_cache = NaiveKVCache(self.llama_config, config.max_batch_size, config.max_seq_len)
 
     def generate(self, prompts: List[str], max_tokens: int = 512, greedy: bool = False):
-        input_ids = torch.randint(0, 1000, (len(prompts), 10), device='cuda')
-        positions = torch.arange(0, 10, device='cuda').unsqueeze(0).repeat(len(prompts), 1)
+        batch_size = len(prompts)
+        seq_len = 10
+        input_ids = torch.randint(0, 1000, (batch_size, seq_len), device='cuda')
+        positions = torch.arange(0, seq_len, device='cuda').unsqueeze(0).repeat(batch_size, 1)
         
+        # Prefill phase
         batch = ForwardBatch(input_ids, positions, kv_cache=self.kv_cache, has_prefill=True)
         
         with torch.no_grad():
             logits = self.model(batch)
+            
+            # Decode loop
+            for i in range(max_tokens - 1):
+                next_token = torch.randint(0, 1000, (batch_size, 1), device='cuda')
+                next_pos = torch.full((batch_size, 1), seq_len + i, device='cuda')
+                decode_batch = ForwardBatch(next_token, next_pos, kv_cache=self.kv_cache, has_decode=True)
+                logits = self.model(decode_batch)
             
         return ["Dummy output" for _ in prompts]
