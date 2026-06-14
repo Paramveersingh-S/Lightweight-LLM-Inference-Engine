@@ -57,11 +57,27 @@ class LlamaCheckpointLoader:
             try:
                 from huggingface_hub import snapshot_download
                 print(f"Attempting to download weights for {model_path} from HuggingFace Hub...")
-                model_path = snapshot_download(model_path, allow_patterns=["*.safetensors", "*.bin"])
+                model_path = snapshot_download(model_path, allow_patterns=["*.safetensors", "*.bin", "config.json"])
             except ImportError:
                 print("huggingface_hub not installed. Cannot download weights automatically.")
             except Exception as e:
                 print(f"Failed to download from HF hub: {e}")
+
+        # Update config with actual HF config.json
+        config_path = os.path.join(model_path, "config.json")
+        if os.path.exists(config_path):
+            import json
+            with open(config_path, "r") as f:
+                hf_config = json.load(f)
+            config.hidden_size = hf_config.get("hidden_size", config.hidden_size)
+            config.num_attention_heads = hf_config.get("num_attention_heads", config.num_attention_heads)
+            config.num_key_value_heads = hf_config.get("num_key_value_heads", config.num_key_value_heads)
+            config.num_hidden_layers = hf_config.get("num_hidden_layers", config.num_hidden_layers)
+            config.intermediate_size = hf_config.get("intermediate_size", config.intermediate_size)
+            config.vocab_size = hf_config.get("vocab_size", config.vocab_size)
+            config.rms_norm_eps = hf_config.get("rms_norm_eps", config.rms_norm_eps)
+            config.max_position_embeddings = hf_config.get("max_position_embeddings", config.max_position_embeddings)
+
 
         # Initialize model directly on GPU to save CPU RAM
         print("Initializing empty model on GPU...")

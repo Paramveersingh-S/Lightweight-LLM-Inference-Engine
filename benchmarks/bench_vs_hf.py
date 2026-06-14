@@ -30,6 +30,16 @@ def benchmark_hf():
     torch.cuda.synchronize()
     elapsed = time.perf_counter() - start
     tokens = outputs.shape[1] - inputs.input_ids.shape[1]
+    
+    # Free up Colab GPU memory for the lite_llama engine
+    del model
+    del tokenizer
+    del inputs
+    del outputs
+    import gc
+    gc.collect()
+    torch.cuda.empty_cache()
+    
     return elapsed, tokens / elapsed
 
 def benchmark_lite_llama():
