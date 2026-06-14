@@ -26,15 +26,17 @@ def _silu_and_mul_kernel(
     tl.store(Y_ptr + offsets, y, mask=mask)
 
 def fused_silu_and_mul(gate: torch.Tensor, up: torch.Tensor):
-    M, N = gate.shape[0] * gate.shape[1], gate.shape[-1]
-    y = torch.empty_like(gate)
+    gate_2d = gate.view(-1, gate.shape[-1])
+    up_2d = up.view(-1, up.shape[-1])
+    M, N = gate_2d.shape
+    y_2d = torch.empty_like(gate_2d)
     
     BLOCK_SIZE = triton.next_power_of_2(N)
     grid = (M,)
     
     _silu_and_mul_kernel[grid](
-        gate, up, y,
-        gate.stride(-2) if gate.dim() > 1 else gate.stride(0), N,
+        gate_2d, up_2d, y_2d,
+        gate_2d.stride(0), N,
         BLOCK_SIZE=BLOCK_SIZE,
     )
-    return y
+    return y_2d.view(gate.shape)

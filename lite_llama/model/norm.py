@@ -1,14 +1,13 @@
 import torch
 import torch.nn as nn
+from ..kernels.rmsnorm import fused_rmsnorm
 
 class RMSNorm(nn.Module):
-    def __init__(self, hidden_size, eps=1e-5):
+    def __init__(self, dim: int, eps: float = 1e-6):
         super().__init__()
-        self.weight = nn.Parameter(torch.ones(hidden_size))
         self.eps = eps
+        self.weight = nn.Parameter(torch.ones(dim))
 
-    def forward(self, x: torch.Tensor):
-        # To maintain fp32 precision for variance
-        variance = x.pow(2).mean(-1, keepdim=True)
-        x = x * torch.rsqrt(variance + self.eps)
-        return self.weight * x
+    def forward(self, x):
+        # Use our low-level memory-bound Triton kernel
+        return fused_rmsnorm(x, self.weight, self.eps)
