@@ -67,7 +67,7 @@ def generate_performance_graph(hf_tps, our_tps):
         throughput = [hf_tps, our_tps]
         
         plt.figure(figsize=(8, 6))
-        ax = sns.barplot(x=models, y=throughput, palette="Blues_d")
+        ax = sns.barplot(x=models, y=throughput, hue=models, legend=False, palette="Blues_d")
         plt.title('Throughput Comparison: HF vs lite_llama', fontsize=16)
         plt.ylabel('Tokens / Second', fontsize=12)
         
@@ -78,8 +78,10 @@ def generate_performance_graph(hf_tps, our_tps):
                         xytext = (0, 9), 
                         textcoords = 'offset points')
                         
-        plt.savefig('throughput_comparison.png')
-        print("Performance graph saved to throughput_comparison.png")
+        import os
+        os.makedirs("docs", exist_ok=True)
+        plt.savefig('docs/throughput_comparison.png')
+        print("Performance graph saved to docs/throughput_comparison.png")
     except ImportError:
         print("Matplotlib/Seaborn not installed, skipping graph generation.")
 
