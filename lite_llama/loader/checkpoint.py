@@ -52,6 +52,17 @@ def convert_hf_to_lite_llama(hf_state: dict, config: LlamaConfig) -> dict:
 class LlamaCheckpointLoader:
     @staticmethod
     def load(model_path: str, config: LlamaConfig, dtype=torch.float16) -> LlamaModel:
+        import os
+        if not os.path.exists(model_path):
+            try:
+                from huggingface_hub import snapshot_download
+                print(f"Attempting to download weights for {model_path} from HuggingFace Hub...")
+                model_path = snapshot_download(model_path, allow_patterns=["*.safetensors", "*.bin"])
+            except ImportError:
+                print("huggingface_hub not installed. Cannot download weights automatically.")
+            except Exception as e:
+                print(f"Failed to download from HF hub: {e}")
+
         hf_state = {}
         shards = glob.glob(f"{model_path}/*.safetensors")
         if not shards:

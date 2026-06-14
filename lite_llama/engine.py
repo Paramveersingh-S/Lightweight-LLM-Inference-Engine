@@ -35,8 +35,17 @@ class LLMEngine:
         
         try:
             self.model = LlamaCheckpointLoader.load(config.model_path, self.llama_config, dtype=getattr(torch, config.dtype))
-        except (FileNotFoundError, RuntimeError):
-            self.model = LlamaModel(self.llama_config)
+        except (FileNotFoundError, RuntimeError) as e:
+            print(f"Warning: Could not load real weights ({e}). Initializing random dummy weights on GPU to avoid CPU RAM peaking.")
+            # Set default tensor type to avoid CPU RAM OOM during dummy init
+            original_dtype = torch.get_default_dtype()
+            torch.set_default_dtype(getattr(torch, config.dtype))
+            try:
+                # Initialize directly on GPU
+                with torch.device('cuda'):
+                    self.model = LlamaModel(self.llama_config)
+            finally:
+                torch.set_default_dtype(original_dtype)
             
         self.model.eval()
         self.kv_cache = NaiveKVCache(self.llama_config, config.max_batch_size, config.max_seq_len)
